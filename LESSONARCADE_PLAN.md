@@ -1,6 +1,6 @@
-# LessonArcade Plan
+# LessonArcade Lite Plan
 
-LessonArcade transforms passive video watching into active learning through AI-generated "Arcade" levels.
+LessonArcade Lite transforms passive video watching into active learning through AI-generated "Arcade" levels.
 
 ## User Flows
 

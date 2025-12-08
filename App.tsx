@@ -73,7 +73,7 @@ const App: React.FC = () => {
                 >
                     <ChevronLeft className="w-5 h-5" />
                 </button>
-                <h1 className="font-bold text-xl text-slate-800 hidden sm:block">LessonArcade</h1>
+                <h1 className="font-bold text-xl text-slate-800 hidden sm:block">LessonArcade Lite</h1>
                 <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
                 <div className="text-sm font-medium text-slate-600 truncate max-w-[200px] sm:max-w-xs">
                     {project.videoTitle}
@@ -116,7 +116,7 @@ const App: React.FC = () => {
         {/* Left Column: Video & Navigation */}
         <div className="lg:col-span-5 space-y-6 flex flex-col h-[calc(100vh-7rem)] overflow-y-auto pb-10">
             <div className="flex-shrink-0">
-                <VideoPlayer videoUrl={project.videoUrl} />
+                <VideoPlayer videoUrl={project.videoUrl} title={project.videoTitle} />
             </div>
             
             <div className="flex-1">

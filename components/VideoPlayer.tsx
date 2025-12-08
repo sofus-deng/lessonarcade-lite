@@ -1,11 +1,12 @@
 import React from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, AlertCircle } from 'lucide-react';
 
 interface VideoPlayerProps {
   videoUrl: string;
+  title?: string;
 }
 
-export const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoUrl }) => {
+export const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoUrl, title }) => {
   const getEmbedUrl = (url: string) => {
     let videoId = '';
     let listId = '';
@@ -24,7 +25,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoUrl }) => {
 
     if (!videoId) return '';
 
-    let embedSrc = `https://www.youtube.com/embed/${videoId}?rel=0`;
+    // Use privacy-enhanced domain and ensure rel=0
+    let embedSrc = `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`;
     if (listId) {
       embedSrc += `&list=${listId}`;
     }
@@ -36,32 +38,44 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoUrl }) => {
   if (!embedUrl) {
     return (
       <div className="w-full aspect-video bg-slate-900 rounded-xl flex items-center justify-center text-white">
-        <p>Invalid Video URL</p>
+        <div className="flex flex-col items-center gap-2">
+            <AlertCircle className="w-8 h-8 text-red-400" />
+            <p>Invalid Video URL</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-lg border border-slate-800">
+    <div className="flex flex-col gap-3">
+      <div className="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-lg border border-slate-800 relative group bg-slate-900">
         <iframe
           className="w-full h-full"
           src={embedUrl}
-          title="YouTube video player"
+          title={title || "Lesson video"}
           frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
         />
       </div>
-      <a 
-        href={videoUrl} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="text-xs text-slate-500 hover:text-arcade-600 flex items-center justify-end gap-1 px-1 transition-colors"
-      >
-        <span>Open on YouTube</span>
-        <ExternalLink className="w-3 h-3" />
-      </a>
+      
+      {/* Fallback / External Link */}
+      <div className="flex items-center justify-between px-2 py-2 bg-slate-100/50 rounded-lg border border-slate-200">
+        <p className="text-xs text-slate-500 font-medium">
+            Video not playing?
+        </p>
+        <a 
+            href={videoUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-sm font-bold text-arcade-600 hover:text-arcade-700 hover:underline transition-colors"
+        >
+            <span>Watch on YouTube</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      </div>
     </div>
   );
 };

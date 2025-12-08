@@ -106,7 +106,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({ onLessonCreated }) => {
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm shadow-inner">
                <Sparkles className="w-8 h-8 text-yellow-300 animate-pulse-slow" />
             </div>
-            LessonArcade
+            LessonArcade Lite
         </h1>
         <p className="text-purple-100 text-lg font-medium opacity-90">Insert Coin (URL) to Start Learning</p>
       </div>
