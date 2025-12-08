@@ -22,6 +22,28 @@
                 800: '#5b21b6',
                 900: '#4c1d95',
               }
+            },
+            animation: {
+              'blob': 'blob 7s infinite',
+              'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
+              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'shimmer': 'shimmer 2s linear infinite',
+            },
+            keyframes: {
+              blob: {
+                '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                '100%': { transform: 'translate(0px, 0px) scale(1)' },
+              },
+              fadeInUp: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              shimmer: {
+                '0%': { backgroundPosition: '-200% 0' },
+                '100%': { backgroundPosition: '200% 0' },
+              }
             }
           }
         }
@@ -39,7 +61,7 @@
 }
 </script>
 </head>
-  <body class="bg-slate-50 text-slate-900 font-sans antialiased">
+  <body class="bg-slate-50 text-slate-900 font-sans antialiased selection:bg-arcade-200 selection:text-arcade-900">
     <div id="root"></div>
   </body>
 </html>
