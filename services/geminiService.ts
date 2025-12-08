@@ -153,3 +153,36 @@ export async function evaluateAnswer(
     };
   }
 }
+
+export async function generateVideoSummary(
+  videoTitle: string,
+  authorName: string,
+  audience: Audience,
+  difficulty: Difficulty
+): Promise<string> {
+  const model = "gemini-3-pro-preview";
+
+  const prompt = `
+    You are an educational content curator. 
+    Analyze the following video metadata to help prepare a lesson plan:
+    Title: "${videoTitle}"
+    Channel: "${authorName}"
+    Target Audience: ${audience}
+    Difficulty: ${difficulty}
+
+    Write a short, engaging 2-3 sentence summary explaining what a learner will gain from this lesson.
+    Focus on learning outcomes.
+    Return ONLY the plain text summary.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+    });
+    return response.text?.trim() || "";
+  } catch (error) {
+    console.error("Gemini Summary Error:", error);
+    return "";
+  }
+}

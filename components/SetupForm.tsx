@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { generateLessonPlan } from '../services/geminiService';
+import { generateLessonPlan, generateVideoSummary } from '../services/geminiService';
 import { LessonProject, Audience, Difficulty } from '../types';
-import { Loader2, Sparkles, Youtube } from 'lucide-react';
+import { Loader2, Sparkles, Youtube, Wand2 } from 'lucide-react';
 
 interface SetupFormProps {
   onLessonCreated: (project: LessonProject) => void;
@@ -15,6 +15,62 @@ export const SetupForm: React.FC<SetupFormProps> = ({ onLessonCreated }) => {
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-fill state
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [autoFillError, setAutoFillError] = useState<string | null>(null);
+
+  const handleAutoFill = async () => {
+    if (!url) return;
+    
+    // 1. Validate URL
+    let isYoutube = false;
+    try {
+      const u = new URL(url);
+      isYoutube = u.hostname.includes('youtube.com') || u.hostname === 'youtu.be';
+    } catch(e) {}
+    
+    if (!isYoutube) {
+      setAutoFillError("Please paste a valid YouTube URL before auto-filling.");
+      return;
+    }
+
+    setIsAutoFilling(true);
+    setAutoFillError(null);
+
+    try {
+      // 2. Fetch oEmbed Data
+      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+      const res = await fetch(oembedUrl);
+      
+      if (!res.ok) {
+        throw new Error("Could not fetch video details from YouTube.");
+      }
+      
+      const data = await res.json();
+      const fetchedTitle = data.title;
+      const authorName = data.author_name;
+
+      // Update Title
+      if (fetchedTitle) {
+        setTitle(fetchedTitle);
+      }
+
+      // 3. Generate Summary with Gemini
+      if (fetchedTitle) {
+         const summary = await generateVideoSummary(fetchedTitle, authorName, audience, difficulty);
+         if (summary) {
+           setDescription(summary);
+         }
+      }
+
+    } catch (err) {
+      console.error(err);
+      setAutoFillError("We couldn't auto-fill this video. You can still type the title and summary manually.");
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,17 +101,40 @@ export const SetupForm: React.FC<SetupFormProps> = ({ onLessonCreated }) => {
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">YouTube URL</label>
-          <div className="relative">
-            <Youtube className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
-            <input 
-                type="url" 
-                required
-                className="w-full pl-10 p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-arcade-500 focus:border-arcade-500 outline-none transition-all"
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-            />
+          <div className="flex gap-2 items-start">
+            <div className="relative flex-1">
+              <Youtube className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+              <input 
+                  type="url" 
+                  required
+                  className="w-full pl-10 p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-arcade-500 focus:border-arcade-500 outline-none transition-all"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  value={url}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    if (autoFillError) setAutoFillError(null);
+                  }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleAutoFill}
+              disabled={!url || isAutoFilling}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2.5 rounded-lg border border-slate-300 transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {isAutoFilling ? (
+                <Loader2 className="animate-spin w-4 h-4" />
+              ) : (
+                <Wand2 className="w-4 h-4 text-arcade-600" />
+              )}
+              {isAutoFilling ? "Filling..." : "Auto-fill"}
+            </button>
           </div>
+          {autoFillError && (
+             <p className="text-red-500 text-xs mt-2 ml-1 animate-in slide-in-from-top-1 fade-in duration-200">
+               {autoFillError}
+             </p>
+          )}
         </div>
 
         <div>
