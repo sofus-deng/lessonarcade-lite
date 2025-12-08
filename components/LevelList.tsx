@@ -1,6 +1,6 @@
 import React from 'react';
 import { LessonLevel } from '../types';
-import { Play, CheckCircle, Lock } from 'lucide-react';
+import { Play, CheckCircle, Lock, Clock } from 'lucide-react';
 
 interface LevelListProps {
   levels: LessonLevel[];
@@ -25,7 +25,7 @@ export const LevelList: React.FC<LevelListProps> = ({ levels, currentLevelId, on
             onClick={() => !isLocked && onSelectLevel(level.id)}
             disabled={isLocked}
             className={`
-              w-full text-left p-4 rounded-xl border transition-all duration-200
+              w-full text-left p-4 rounded-xl border transition-all duration-200 group
               ${isActive 
                 ? 'bg-arcade-50 border-arcade-500 shadow-md ring-1 ring-arcade-500' 
                 : 'bg-white border-slate-200 hover:border-arcade-300 hover:shadow-sm'}
@@ -33,26 +33,27 @@ export const LevelList: React.FC<LevelListProps> = ({ levels, currentLevelId, on
             `}
           >
             <div className="flex items-start justify-between">
-              <div>
+              <div className="flex-1 pr-2">
                 <h4 className={`font-semibold ${isActive ? 'text-arcade-700' : 'text-slate-800'}`}>
                   Level {index + 1}: {level.title}
                 </h4>
                 <p className="text-sm text-slate-500 mt-1 line-clamp-2">{level.description}</p>
               </div>
-              <div className="mt-1">
+              <div className="mt-1 flex-shrink-0">
                  {isCompleted ? (
                    <CheckCircle className="w-5 h-5 text-green-500" />
                  ) : isLocked ? (
                    <Lock className="w-5 h-5 text-slate-400" />
                  ) : (
-                   <Play className={`w-5 h-5 ${isActive ? 'text-arcade-600' : 'text-slate-300'}`} />
+                   <Play className={`w-5 h-5 ${isActive ? 'text-arcade-600' : 'text-slate-300 group-hover:text-arcade-400'}`} />
                  )}
               </div>
             </div>
             {level.timeRangeStart && (
-               <span className="inline-block mt-2 text-xs font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                 {level.timeRangeStart}
-               </span>
+               <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+                 <Clock className="w-3 h-3" />
+                 <span>Starts at {level.timeRangeStart}</span>
+               </div>
             )}
           </button>
         );

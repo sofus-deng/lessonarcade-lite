@@ -157,7 +157,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({ onLessonCreated }) => {
 
         {/* Title Input */}
         <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Video Title</label>
+            <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Lesson Title</label>
             <input 
                 type="text" 
                 required
@@ -173,7 +173,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({ onLessonCreated }) => {
             {!isInputsEnabled && (
                 <p className="text-xs text-slate-400 mt-2 italic flex items-center gap-1.5 px-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                  Will be filled automatically after you use Auto-fill.
+                  Will be filled automatically from the video context. You can edit it later.
                 </p>
             )}
         </div>
@@ -233,9 +233,9 @@ export const SetupForm: React.FC<SetupFormProps> = ({ onLessonCreated }) => {
                             value={difficulty}
                             onChange={(e) => setDifficulty(e.target.value as Difficulty)}
                         >
-                            <option value="easy">Easy Mode</option>
+                            <option value="easy">Easy</option>
                             <option value="medium">Medium</option>
-                            <option value="hard">Hard Mode</option>
+                            <option value="hard">Hard</option>
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-500">
                             <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
