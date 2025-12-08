@@ -1,31 +1,78 @@
+
 import React, { useState, useEffect } from 'react';
-import { LessonLevel, QuizQuestion, EvaluationResult } from '../types';
+import { LessonLevel, EvaluationResult } from '../types';
 import { evaluateAnswer } from '../services/geminiService';
-import { Trophy, Flame, ArrowRight, RefreshCcw, Loader2, Sparkles, HelpCircle } from 'lucide-react';
+import { Trophy, Flame, ArrowRight, Loader2, Sparkles, HelpCircle } from 'lucide-react';
 
 interface ArcadePanelProps {
   level: LessonLevel;
-  onLevelComplete: (score: number) => void;
+  isLastLevel: boolean;
+  onLevelComplete: (score: number, correctCount: number, totalQuestions: number) => void;
   updateScore: (points: number) => void;
   streak: number;
   incrementStreak: () => void;
   resetStreak: () => void;
 }
 
+const DonutChart: React.FC<{ correct: number; total: number }> = ({ correct, total }) => {
+  const radius = 16;
+  const circumference = 2 * Math.PI * radius;
+  const percentage = total > 0 ? correct / total : 0;
+  const strokeDashoffset = circumference - percentage * circumference;
+  
+  // Color based on percentage
+  const color = percentage >= 0.8 ? 'text-green-500' : percentage >= 0.5 ? 'text-yellow-500' : 'text-red-500';
+
+  return (
+    <div className="relative w-24 h-24 flex items-center justify-center">
+      <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 36 36">
+        {/* Background Circle */}
+        <path
+          className="text-slate-200"
+          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+        />
+        {/* Progress Circle */}
+        <path
+          className={`${color} transition-all duration-1000 ease-out`}
+          strokeDasharray={`${circumference}, ${circumference}`}
+          strokeDashoffset={strokeDashoffset}
+          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center">
+         <span className={`text-xl font-bold ${color}`}>{Math.round(percentage * 100)}%</span>
+      </div>
+    </div>
+  );
+};
+
 export const ArcadePanel: React.FC<ArcadePanelProps> = ({ 
   level, 
+  isLastLevel,
   onLevelComplete, 
   updateScore,
-  streak,
-  incrementStreak,
-  resetStreak
 }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
+  
+  // Level Local State
   const [levelScore, setLevelScore] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [stats, setStats] = useState({
+    correct: 0,
+    incorrect: 0,
+    maxStreak: 0,
+    currentStreak: 0
+  });
 
   // Reset state when level changes
   useEffect(() => {
@@ -34,6 +81,7 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
     setEvaluation(null);
     setLevelScore(0);
     setCompleted(false);
+    setStats({ correct: 0, incorrect: 0, maxStreak: 0, currentStreak: 0 });
   }, [level.id]);
 
   const currentQuestion = level.questions[currentQuestionIndex];
@@ -52,20 +100,30 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
       
       setEvaluation(result);
       
+      let points = 0;
+      let isAnswerCorrect = false;
+
       if (result.classification === 'correct' || result.isCorrect) {
-        const points = currentQuestion.points || 10;
-        updateScore(points);
-        setLevelScore(prev => prev + points);
-        incrementStreak();
+        points = currentQuestion.points || 10;
+        isAnswerCorrect = true;
       } else if (result.classification === 'partially_correct') {
-         // Partial credit logic
-         const points = Math.floor((currentQuestion.points || 10) * (result.score / 100));
-         updateScore(points);
-         setLevelScore(prev => prev + points);
-         resetStreak();
-      } else {
-        resetStreak();
+         points = Math.floor((currentQuestion.points || 10) * (result.score / 100));
       }
+
+      // Update Scores
+      updateScore(points);
+      setLevelScore(prev => prev + points);
+
+      // Update Stats & Streak
+      setStats(prev => {
+        const newCurrentStreak = isAnswerCorrect ? prev.currentStreak + 1 : 0;
+        return {
+            correct: isAnswerCorrect ? prev.correct + 1 : prev.correct,
+            incorrect: !isAnswerCorrect ? prev.incorrect + 1 : prev.incorrect,
+            currentStreak: newCurrentStreak,
+            maxStreak: Math.max(prev.maxStreak, newCurrentStreak)
+        };
+      });
 
     } catch (e) {
       console.error(e);
@@ -81,21 +139,51 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
       setEvaluation(null);
     } else {
       setCompleted(true);
-      onLevelComplete(levelScore);
+      // Pass stats up to parent
+      const totalQ = level.questions.length;
+      onLevelComplete(levelScore, stats.correct, totalQ);
     }
   };
 
   if (completed) {
+    const accuracy = Math.round((stats.correct / level.questions.length) * 100);
+    let message = "Nice work. Consider reviewing this level to improve your score.";
+    if (accuracy >= 80) message = "Great job! You're ready for the next level.";
+    else if (accuracy === 100) message = "Perfect score! You've mastered this section.";
+
     return (
       <div className="h-full flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-200 p-8 text-center animate-in fade-in zoom-in duration-300 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-yellow-50 to-orange-50 opacity-50"></div>
-        <div className="relative z-10">
-          <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-6 mx-auto shadow-lg shadow-yellow-200/50 ring-4 ring-white">
-            <Trophy className="w-12 h-12 text-yellow-500 animate-bounce" />
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-white opacity-50"></div>
+        <div className="relative z-10 w-full max-w-md">
+          <div className="flex items-center justify-center mb-6">
+             <DonutChart correct={stats.correct} total={level.questions.length} />
           </div>
+          
           <h2 className="text-3xl font-black text-slate-900 mb-2">Level Complete!</h2>
-          <p className="text-slate-600 mb-8 text-lg">You earned <span className="font-bold text-arcade-600">{levelScore} points</span> in this level.</p>
-          <div className="text-sm font-medium text-slate-400 bg-slate-50 px-4 py-2 rounded-full inline-block">Select the next level to continue</div>
+          <p className="text-slate-600 mb-6 font-medium">
+             You answered {stats.correct} out of {level.questions.length} questions correctly.
+          </p>
+          
+          <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div className="text-xs font-bold text-slate-400 uppercase mb-1">Points Earned</div>
+                  <div className="text-2xl font-black text-arcade-600">+{levelScore}</div>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div className="text-xs font-bold text-slate-400 uppercase mb-1">Best Streak</div>
+                  <div className="text-2xl font-black text-orange-500 flex items-center justify-center gap-1">
+                      <Flame className="w-5 h-5 fill-orange-500" /> {stats.maxStreak}
+                  </div>
+              </div>
+          </div>
+
+          <p className="text-sm text-slate-500 bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 mb-6 italic">
+             "{message}"
+          </p>
+
+          <div className="text-sm font-medium text-slate-400">
+            {isLastLevel ? "Select 'Finish Course' to see your final results." : "Select the next level to continue."}
+          </div>
         </div>
       </div>
     );
@@ -105,7 +193,6 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
 
   return (
     <div className="bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50 rounded-3xl border border-slate-200/60 shadow-xl shadow-slate-200/40 flex flex-col h-full min-h-[500px] overflow-hidden relative">
-      {/* Background Pattern */}
       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#6d28d9 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
       
       {/* Header */}
@@ -121,9 +208,16 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
                 {currentQuestion.type === 'multiple_choice' ? 'Multiple Choice' : 'Short Answer'}
             </span>
         </div>
-        <div className="flex items-center gap-1.5 text-orange-500 font-black bg-orange-50 px-3 py-1 rounded-full border border-orange-100 shadow-sm">
-            <Flame className={`w-4 h-4 ${streak > 0 ? 'fill-orange-500 animate-pulse' : ''}`} />
-            <span>{streak}</span>
+        
+        {/* Streak Chip */}
+        <div 
+            className="flex items-center gap-1.5 text-orange-600 font-bold bg-orange-50 px-3 py-1 rounded-full border border-orange-100 shadow-sm cursor-help transition-transform hover:scale-105"
+            title="Your current streak of correct answers in this level."
+        >
+            <div className={`p-1 bg-white rounded-full shadow-sm ${stats.currentStreak > 0 ? 'animate-pulse' : ''}`}>
+                <Flame className={`w-3.5 h-3.5 ${stats.currentStreak > 0 ? 'fill-orange-500 text-orange-500' : 'text-slate-300'}`} />
+            </div>
+            <span className="text-sm">Streak {stats.currentStreak}</span>
         </div>
       </div>
 
@@ -238,7 +332,9 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
                 onClick={handleNext}
                 className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
             >
-                {currentQuestionIndex < level.questions.length - 1 ? 'Next Question' : 'Finish Level'}
+                {currentQuestionIndex < level.questions.length - 1 
+                    ? 'Next Question' 
+                    : isLastLevel ? 'Finish Course' : 'Finish Level'}
                 <ArrowRight className="w-4 h-4" />
             </button>
         )}

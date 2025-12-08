@@ -1,3 +1,4 @@
+
 export type Audience = 'beginner' | 'intermediate' | 'advanced' | 'professional' | 'child';
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type QuestionType = 'multiple_choice' | 'short_answer';
@@ -43,4 +44,11 @@ export interface PlaySession {
   answers: Record<string, EvaluationResult>; // Keyed by question ID
   score: number;
   streak: number;
+}
+
+export interface LeaderboardEntry {
+  name: string;
+  score: number;
+  accuracy: number; // 0-100
+  completedAt: number; // timestamp
 }
