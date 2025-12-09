@@ -3,23 +3,93 @@ import { LessonProject, EvaluationResult, Audience, Difficulty } from "../types"
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// -- Constants --
+// Default to the most capable model for best reasoning and content quality.
+const PRIMARY_MODEL_ID = "gemini-3-pro-preview";
+// Fallback to Flash if we hit rate limits (429) or temporary overload (503).
+const FALLBACK_MODEL_ID = "gemini-2.5-flash";
+
 // -- Helper: Retry Logic --
 
-async function withRetry<T>(operation: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: any) {
-    // Check for rate limit (429) or server overload (503)
-    const status = error?.status || error?.response?.status;
-    const isRateLimit = status === 429 || error?.message?.includes('429') || error?.message?.includes('quota');
-    const isServerOverload = status === 503;
-    
-    if ((isRateLimit || isServerOverload) && retries > 0) {
-      console.warn(`Gemini API Error (${status || 'unknown'}). Retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return withRetry(operation, retries - 1, delay * 2);
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries = 3,
+  baseDelayMs = 1000
+): Promise<T> {
+  let attempt = 0;
+
+  while (true) {
+    try {
+      return await operation();
+    } catch (err: any) {
+      const status = err?.status || err?.response?.status;
+      const code = err?.code || err?.error?.code;
+      const message = err?.message || '';
+
+      const isRateLimit =
+        status === "RESOURCE_EXHAUSTED" ||
+        status === 429 ||
+        code === 429 ||
+        message.includes('429') ||
+        message.includes('quota') ||
+        message.includes('RESOURCE_EXHAUSTED');
+
+      const isServerOverload =
+        status === "UNAVAILABLE" ||
+        status === 503 ||
+        code === 503 ||
+        message.includes('503');
+
+      // If we've exhausted retries OR it's a non-retryable error, throw.
+      if (attempt >= maxRetries || (!isRateLimit && !isServerOverload)) {
+        throw err;
+      }
+
+      const delay = baseDelayMs * Math.pow(2, attempt);
+      console.warn(`[Gemini Retry] Attempt ${attempt + 1} failed (${status || code}). Retrying in ${delay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      attempt += 1;
     }
-    throw error;
+  }
+}
+
+// -- Helper: Fallback Logic --
+
+async function callModelWithFallback(
+  callWithModel: (modelId: string) => Promise<GenerateContentResponse>
+): Promise<GenerateContentResponse> {
+  try {
+    // 1. Try Primary Model (with its own retries)
+    return await withRetry(() => callWithModel(PRIMARY_MODEL_ID));
+  } catch (err: any) {
+    const status = err?.status || err?.response?.status;
+    const code = err?.code || err?.error?.code;
+    const message = err?.message || '';
+
+    const isRateLimit =
+      status === "RESOURCE_EXHAUSTED" ||
+      status === 429 ||
+      code === 429 ||
+      message.includes('429') ||
+      message.includes('quota') ||
+      message.includes('RESOURCE_EXHAUSTED');
+
+    const isServerOverload =
+      status === "UNAVAILABLE" ||
+      status === 503 ||
+      code === 503;
+
+    // 2. Only fallback if we hit a Rate Limit or Overload
+    if (isRateLimit || isServerOverload) {
+      console.warn(
+        `[LessonArcade Lite] Primary model (${PRIMARY_MODEL_ID}) exhausted or overloaded. Falling back to ${FALLBACK_MODEL_ID}.`
+      );
+      // Try Fallback Model (with its own retries)
+      return await withRetry(() => callWithModel(FALLBACK_MODEL_ID));
+    }
+
+    // Otherwise, rethrow (e.g., bad request, invalid prompt, etc.)
+    throw err;
   }
 }
 
@@ -83,9 +153,6 @@ export async function generateLessonPlan(
   audience: Audience,
   difficulty: Difficulty
 ): Promise<LessonProject> {
-  // Switched to flash for higher quotas and speed
-  const model = "gemini-2.5-flash"; 
-
   const prompt = `
     You are an expert educational designer. Create a structured interactive lesson plan based on the following YouTube video context.
     
@@ -103,8 +170,8 @@ export async function generateLessonPlan(
   `;
 
   try {
-    const response = await withRetry<GenerateContentResponse>(() => ai.models.generateContent({
-      model,
+    const response = await callModelWithFallback((modelId) => ai.models.generateContent({
+      model: modelId,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -136,9 +203,6 @@ export async function evaluateAnswer(
   correctAnswerContext: string,
   questionType: 'multiple_choice' | 'short_answer'
 ): Promise<EvaluationResult> {
-  // Switched to flash for higher quotas and speed
-  const model = "gemini-2.5-flash";
-
   const prompt = `
     Evaluate the student's answer.
     
@@ -154,8 +218,8 @@ export async function evaluateAnswer(
   `;
 
   try {
-    const response = await withRetry<GenerateContentResponse>(() => ai.models.generateContent({
-      model,
+    const response = await callModelWithFallback((modelId) => ai.models.generateContent({
+      model: modelId,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -182,9 +246,6 @@ export async function generateVideoSummary(
   audience: Audience,
   difficulty: Difficulty
 ): Promise<string> {
-  // Switched to flash for higher quotas and speed
-  const model = "gemini-2.5-flash";
-
   const prompt = `
     You are an educational content curator. 
     Analyze the following video metadata to help prepare a lesson plan:
@@ -199,8 +260,8 @@ export async function generateVideoSummary(
   `;
 
   try {
-    const response = await withRetry<GenerateContentResponse>(() => ai.models.generateContent({
-      model,
+    const response = await callModelWithFallback((modelId) => ai.models.generateContent({
+      model: modelId,
       contents: prompt,
     }));
     return response.text?.trim() || "";
