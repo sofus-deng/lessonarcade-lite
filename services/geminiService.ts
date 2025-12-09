@@ -1,7 +1,27 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, Type, Schema, GenerateContentResponse } from "@google/genai";
 import { LessonProject, EvaluationResult, Audience, Difficulty } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+// -- Helper: Retry Logic --
+
+async function withRetry<T>(operation: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
+  try {
+    return await operation();
+  } catch (error: any) {
+    // Check for rate limit (429) or server overload (503)
+    const status = error?.status || error?.response?.status;
+    const isRateLimit = status === 429 || error?.message?.includes('429') || error?.message?.includes('quota');
+    const isServerOverload = status === 503;
+    
+    if ((isRateLimit || isServerOverload) && retries > 0) {
+      console.warn(`Gemini API Error (${status || 'unknown'}). Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return withRetry(operation, retries - 1, delay * 2);
+    }
+    throw error;
+  }
+}
 
 // -- Schemas --
 
@@ -63,7 +83,8 @@ export async function generateLessonPlan(
   audience: Audience,
   difficulty: Difficulty
 ): Promise<LessonProject> {
-  const model = "gemini-3-pro-preview"; // Using Pro for complex reasoning
+  // Switched to flash for higher quotas and speed
+  const model = "gemini-2.5-flash"; 
 
   const prompt = `
     You are an expert educational designer. Create a structured interactive lesson plan based on the following YouTube video context.
@@ -82,7 +103,7 @@ export async function generateLessonPlan(
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await withRetry<GenerateContentResponse>(() => ai.models.generateContent({
       model,
       contents: prompt,
       config: {
@@ -90,7 +111,7 @@ export async function generateLessonPlan(
         responseSchema: lessonPlanSchema,
         systemInstruction: "You are a precise JSON generator for educational content.",
       },
-    });
+    }));
 
     const levels = JSON.parse(response.text || "[]");
     
@@ -115,7 +136,8 @@ export async function evaluateAnswer(
   correctAnswerContext: string,
   questionType: 'multiple_choice' | 'short_answer'
 ): Promise<EvaluationResult> {
-  const model = "gemini-3-pro-preview";
+  // Switched to flash for higher quotas and speed
+  const model = "gemini-2.5-flash";
 
   const prompt = `
     Evaluate the student's answer.
@@ -132,14 +154,14 @@ export async function evaluateAnswer(
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await withRetry<GenerateContentResponse>(() => ai.models.generateContent({
       model,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: evaluationSchema,
       },
-    });
+    }));
 
     return JSON.parse(response.text || "{}");
   } catch (error) {
@@ -160,7 +182,8 @@ export async function generateVideoSummary(
   audience: Audience,
   difficulty: Difficulty
 ): Promise<string> {
-  const model = "gemini-3-pro-preview";
+  // Switched to flash for higher quotas and speed
+  const model = "gemini-2.5-flash";
 
   const prompt = `
     You are an educational content curator. 
@@ -176,10 +199,10 @@ export async function generateVideoSummary(
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await withRetry<GenerateContentResponse>(() => ai.models.generateContent({
       model,
       contents: prompt,
-    });
+    }));
     return response.text?.trim() || "";
   } catch (error) {
     console.error("Gemini Summary Error:", error);
