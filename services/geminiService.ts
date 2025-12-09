@@ -211,7 +211,16 @@ export async function generateLessonPlan(
       difficulty,
       levels
     };
-  } catch (error) {
+  } catch (error: any) {
+    // Check if the error from callModelWithFallback is a quota error
+    const message = error?.message || '';
+    const isQuota = message.includes('429') || message.includes('quota') || message.includes('RESOURCE_EXHAUSTED');
+    
+    if (isQuota) {
+      console.warn("Gemini Quota Exceeded (Both Models):", error);
+      throw new Error("Failed to call the Gemini API: user has exceeded quota. Please try again later.");
+    }
+    
     console.error("Gemini Generation Error:", error);
     throw new Error("Failed to generate lesson plan. Please try again.");
   }
