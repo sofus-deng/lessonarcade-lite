@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { LessonLevel, EvaluationResult } from '../types';
 import { evaluateAnswer } from '../services/geminiService';
@@ -8,6 +7,7 @@ interface ArcadePanelProps {
   level: LessonLevel;
   isLastLevel: boolean;
   onLevelComplete: (score: number, correctCount: number, totalQuestions: number) => void;
+  onNextLevel: () => void;
   updateScore: (points: number) => void;
   streak: number;
   incrementStreak: () => void;
@@ -57,6 +57,7 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
   level, 
   isLastLevel,
   onLevelComplete, 
+  onNextLevel,
   updateScore,
 }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -147,12 +148,15 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
 
   if (completed) {
     const accuracy = Math.round((stats.correct / level.questions.length) * 100);
-    let message = "Nice work. Consider reviewing this level to improve your score.";
-    if (accuracy >= 80) message = "Great job! You're ready for the next level.";
-    else if (accuracy === 100) message = "Perfect score! You've mastered this section.";
+    let message = "";
+    if (accuracy >= 80) message = "Great job! You really understand this level.";
+    else if (accuracy >= 50) message = "Nice work. You’re getting there—consider reviewing this level to boost your score.";
+    else message = "You've made a start. Try this level again or review the video to improve your understanding.";
+
+    if (accuracy === 100) message = "Perfect score! You've mastered this section.";
 
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-200 p-8 text-center animate-in fade-in zoom-in duration-300 relative overflow-hidden">
+      <div className="h-full flex flex-col items-center justify-center bg-white/95 backdrop-blur-sm rounded-3xl border border-white/60 p-8 text-center animate-in fade-in zoom-in duration-300 relative overflow-hidden shadow-sm">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-white opacity-50"></div>
         <div className="relative z-10 w-full max-w-md">
           <div className="flex items-center justify-center mb-6">
@@ -177,13 +181,23 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
               </div>
           </div>
 
-          <p className="text-sm text-slate-500 bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 mb-6 italic">
-             "{message}"
+          <p className="text-sm text-slate-500 bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 mb-6 font-medium">
+             {message}
           </p>
 
-          <div className="text-sm font-medium text-slate-400">
-            {isLastLevel ? "Select 'Finish Course' to see your final results." : "Select the next level to continue."}
-          </div>
+          {!isLastLevel ? (
+              <button 
+                onClick={onNextLevel}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Next Level
+                <ArrowRight className="w-4 h-4" />
+              </button>
+          ) : (
+            <div className="text-sm font-medium text-slate-400">
+                Select 'Finish Course' to see your final results.
+            </div>
+          )}
         </div>
       </div>
     );
@@ -192,7 +206,7 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
   if (!currentQuestion) return null;
 
   return (
-    <div className="bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50 rounded-3xl border border-slate-200/60 shadow-xl shadow-slate-200/40 flex flex-col h-full min-h-[500px] overflow-hidden relative">
+    <div className="bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50 rounded-3xl border border-white/60 shadow-xl shadow-slate-200/40 flex flex-col h-full min-h-[500px] overflow-hidden relative">
       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#6d28d9 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
       
       {/* Header */}
@@ -200,11 +214,16 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
         <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-arcade-100/80 text-arcade-700 px-3 py-1.5 rounded-full border border-arcade-200 shadow-sm">
                 <HelpCircle className="w-3.5 h-3.5" />
-                <span className="text-xs font-bold uppercase tracking-wider">
-                   Question {currentQuestionIndex + 1} / {level.questions.length}
-                </span>
+                <div className="flex flex-col md:flex-row md:gap-1 leading-none md:leading-normal">
+                    <span className="text-xs font-bold uppercase tracking-wider">
+                    Question {currentQuestionIndex + 1}
+                    </span>
+                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider opacity-60">
+                    of {level.questions.length}
+                    </span>
+                </div>
             </div>
-            <span className="text-xs text-slate-500 font-medium bg-white/50 px-2 py-1 rounded-md border border-white">
+            <span className="hidden md:inline-block text-xs text-slate-500 font-medium bg-white/50 px-2 py-1 rounded-md border border-white">
                 {currentQuestion.type === 'multiple_choice' ? 'Multiple Choice' : 'Short Answer'}
             </span>
         </div>
