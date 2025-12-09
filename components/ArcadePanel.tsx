@@ -210,20 +210,20 @@ export const ArcadePanel: React.FC<ArcadePanelProps> = ({
       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#6d28d9 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
       
       {/* Header */}
-      <div className="relative z-10 bg-white/40 backdrop-blur-sm border-b border-white/50 p-4 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-arcade-100/80 text-arcade-700 px-3 py-1.5 rounded-full border border-arcade-200 shadow-sm">
+      <div className="relative z-10 bg-white/40 backdrop-blur-sm border-b border-white/50 p-4 flex justify-between items-start md:items-center">
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+            <div className="flex items-center gap-2 bg-arcade-100/80 text-arcade-700 px-3 py-1.5 rounded-full border border-arcade-200 shadow-sm self-start">
                 <HelpCircle className="w-3.5 h-3.5" />
                 <div className="flex flex-col md:flex-row md:gap-1 leading-none md:leading-normal">
-                    <span className="text-xs font-bold uppercase tracking-wider">
-                    Question {currentQuestionIndex + 1}
+                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider">
+                    Question
                     </span>
-                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider opacity-60">
-                    of {level.questions.length}
+                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider">
+                    {currentQuestionIndex + 1} OF {level.questions.length}
                     </span>
                 </div>
             </div>
-            <span className="hidden md:inline-block text-xs text-slate-500 font-medium bg-white/50 px-2 py-1 rounded-md border border-white">
+            <span className="inline-block text-xs text-slate-500 font-medium bg-white/50 px-2 py-1 rounded-md border border-white self-start">
                 {currentQuestion.type === 'multiple_choice' ? 'Multiple Choice' : 'Short Answer'}
             </span>
         </div>

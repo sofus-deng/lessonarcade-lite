@@ -11,9 +11,10 @@ import { APP_NAME } from './config';
 import { Gamepad2, Hammer, ChevronLeft, Star, Trophy, Medal, Save, RotateCcw } from 'lucide-react';
 
 // Shared Background Wrapper Component
+// Updated: Removed bg-slate-50 to let the fixed gradient layer show through.
 const BackgroundWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="min-h-screen relative flex flex-col overflow-x-hidden bg-slate-50">
-      <div className="fixed inset-0 bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 -z-10"></div>
+  <div className="min-h-screen relative flex flex-col overflow-x-hidden text-slate-900 font-sans antialiased">
+      <div className="fixed inset-0 bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 -z-20"></div>
       <div className="fixed top-0 -left-4 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob -z-10"></div>
       <div className="fixed top-0 -right-4 w-96 h-96 bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 -z-10"></div>
       <div className="fixed -bottom-32 left-20 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000 -z-10"></div>
@@ -48,6 +49,14 @@ const App: React.FC = () => {
     document.title = APP_NAME;
   }, []);
 
+  // Refresh leaderboard data whenever the view is opened
+  useEffect(() => {
+    if (showLeaderboard && project) {
+      const data = getLeaderboard(project.id);
+      setLeaderboardData(data);
+    }
+  }, [showLeaderboard, project]);
+
   const handleLessonCreated = (newProject: LessonProject) => {
     setProject(newProject);
     // Auto-select first level
@@ -71,8 +80,6 @@ const App: React.FC = () => {
 
         // Check for Course Completion
         if (newCompleted.length === project.levels.length) {
-            const lb = getLeaderboard(project.id);
-            setLeaderboardData(lb);
             setShowLeaderboard(true);
         }
     }
@@ -181,7 +188,7 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
-                        {!hasSavedScore ? (
+                        {!hasSavedScore && (
                             <div className="bg-arcade-50 p-6 rounded-2xl border border-arcade-100 mb-8">
                                 <h3 className="font-bold text-arcade-900 mb-3 flex items-center gap-2">
                                     <Medal className="w-5 h-5 text-arcade-500" />
@@ -206,40 +213,43 @@ const App: React.FC = () => {
                                     </button>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="mb-8">
-                                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                    <Trophy className="w-5 h-5 text-yellow-500" />
-                                    Local Leaderboard
-                                </h3>
-                                {leaderboardData.length > 0 ? (
-                                    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                                        <table className="w-full text-sm">
-                                            <thead className="bg-slate-50 text-slate-500">
-                                                <tr>
-                                                    <th className="px-4 py-3 text-left font-bold w-16">Rank</th>
-                                                    <th className="px-4 py-3 text-left font-bold">Name</th>
-                                                    <th className="px-4 py-3 text-right font-bold">Accuracy</th>
-                                                    <th className="px-4 py-3 text-right font-bold">Score</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {leaderboardData.map((entry, idx) => (
-                                                    <tr key={idx} className={entry.name === playerName && entry.completedAt === leaderboardData[idx].completedAt ? "bg-yellow-50" : ""}>
-                                                        <td className="px-4 py-3 font-bold text-slate-400">#{idx + 1}</td>
-                                                        <td className="px-4 py-3 font-medium text-slate-800">{entry.name}</td>
-                                                        <td className="px-4 py-3 text-right text-slate-600">{entry.accuracy}%</td>
-                                                        <td className="px-4 py-3 text-right font-bold text-arcade-600">{entry.score}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                ) : (
-                                    <p className="text-center text-slate-500 italic py-4">Be the first to set a high score!</p>
-                                )}
-                            </div>
                         )}
+
+                        <div className="mb-8">
+                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <Trophy className="w-5 h-5 text-yellow-500" />
+                                Local Leaderboard
+                            </h3>
+                            {leaderboardData.length > 0 ? (
+                                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-50 text-slate-500">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left font-bold w-16">Rank</th>
+                                                <th className="px-4 py-3 text-left font-bold">Name</th>
+                                                <th className="px-4 py-3 text-right font-bold">Accuracy</th>
+                                                <th className="px-4 py-3 text-right font-bold">Score</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {leaderboardData.map((entry, idx) => (
+                                                <tr key={idx} className={entry.name === playerName && entry.completedAt === leaderboardData[idx].completedAt ? "bg-yellow-50" : ""}>
+                                                    <td className="px-4 py-3 font-bold text-slate-400">#{idx + 1}</td>
+                                                    <td className="px-4 py-3 font-medium text-slate-800">{entry.name}</td>
+                                                    <td className="px-4 py-3 text-right text-slate-600">{entry.accuracy}%</td>
+                                                    <td className="px-4 py-3 text-right font-bold text-arcade-600">{entry.score}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center bg-slate-50 border border-slate-100 rounded-xl p-6">
+                                    <p className="text-slate-500 italic">No scores saved yet.</p>
+                                    <p className="text-slate-400 text-xs mt-1">Be the first to set a high score for this lesson!</p>
+                                </div>
+                            )}
+                        </div>
 
                         <div className="flex justify-between pt-4 border-t border-slate-100">
                             <button onClick={resetGame} className="text-slate-500 hover:text-slate-700 font-medium px-4 py-2 hover:bg-slate-50 rounded-lg transition-colors">

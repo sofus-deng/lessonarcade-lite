@@ -85,12 +85,20 @@ async function callModelWithFallback(
         `[LessonArcade Lite] Primary model (${PRIMARY_MODEL_ID}) exhausted or overloaded. Falling back to ${FALLBACK_MODEL_ID}.`
       );
       // Try Fallback Model (with its own retries)
+      // Note: If this fails, it will throw, and the UI will see the error.
+      // If this succeeds, the UI will proceed normally without an error toast.
       return await withRetry(() => callWithModel(FALLBACK_MODEL_ID));
     }
 
     // Otherwise, rethrow (e.g., bad request, invalid prompt, etc.)
     throw err;
   }
+}
+
+// -- Helper: Data Cleaning --
+function stripLeadingMarker(text: string): string {
+  // Removes "1.", "1)", "A.", "a)", "A)", etc. from start of string
+  return text.replace(/^(\d+|[a-zA-Z])[\.\)\:\-]\s+/, "").trim();
 }
 
 // -- Schemas --
@@ -119,13 +127,13 @@ const levelSchema: Schema = {
     id: { type: Type.STRING },
     title: { type: Type.STRING },
     description: { type: Type.STRING },
-    timeRangeStart: { type: Type.STRING, description: "Optional timestamp e.g. '00:00'" },
+    timeRangeStart: { type: Type.STRING, description: "Timestamp for when this topic starts in the video, e.g. '02:30' or '15:00'. Estimate if needed." },
     questions: {
       type: Type.ARRAY,
       items: questionSchema
     }
   },
-  required: ["id", "title", "description", "questions"]
+  required: ["id", "title", "description", "timeRangeStart", "questions"]
 };
 
 const lessonPlanSchema: Schema = {
@@ -166,7 +174,8 @@ export async function generateLessonPlan(
     1. Break the lesson into 3-5 distinct "Levels" representing logical progressions in the topic.
     2. For each level, generate 2-3 quiz questions. Mix multiple_choice and short_answer types.
     3. Ensure the content is appropriate for the target audience and difficulty.
-    4. Return ONLY the JSON object for the list of levels.
+    4. Important: Provide a 'timeRangeStart' (e.g. "01:30") for each level to help the user navigate the video.
+    5. Return ONLY the JSON object for the list of levels.
   `;
 
   try {
@@ -182,6 +191,17 @@ export async function generateLessonPlan(
 
     const levels = JSON.parse(response.text || "[]");
     
+    // Post-process: Clean up options
+    levels.forEach((level: any) => {
+      if (level.questions) {
+        level.questions.forEach((q: any) => {
+          if (q.type === 'multiple_choice' && Array.isArray(q.options)) {
+             q.options = q.options.map((opt: string) => stripLeadingMarker(opt));
+          }
+        });
+      }
+    });
+
     return {
       id: crypto.randomUUID(),
       videoUrl,
