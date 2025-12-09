@@ -1,7 +1,6 @@
-
 import { LeaderboardEntry } from "../types";
 
-const LEADERBOARD_PREFIX = 'lessonarcade_leaderboard_';
+const LEADERBOARD_PREFIX = 'lessonarcade_lite_leaderboard_';
 
 export function getLeaderboard(lessonId: string): LeaderboardEntry[] {
   try {

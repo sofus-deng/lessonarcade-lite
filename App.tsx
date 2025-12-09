@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LessonProject, LeaderboardEntry } from './types';
 import { SetupForm } from './components/SetupForm';
 import { VideoPlayer } from './components/VideoPlayer';
@@ -7,6 +6,7 @@ import { LevelList } from './components/LevelList';
 import { ArcadePanel } from './components/ArcadePanel';
 import { BuilderPanel } from './components/BuilderPanel';
 import { getLeaderboard, saveScore } from './services/leaderboardService';
+import { APP_NAME } from './config';
 import { Gamepad2, Hammer, ChevronLeft, Star, Trophy, Medal, Save, RotateCcw } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -30,6 +30,11 @@ const App: React.FC = () => {
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
   const [playerName, setPlayerName] = useState('');
   const [hasSavedScore, setHasSavedScore] = useState(false);
+
+  // Ensure document title matches APP_NAME
+  useEffect(() => {
+    document.title = APP_NAME;
+  }, []);
 
   const handleLessonCreated = (newProject: LessonProject) => {
     setProject(newProject);
@@ -243,7 +248,7 @@ const App: React.FC = () => {
                 >
                     <ChevronLeft className="w-5 h-5" />
                 </button>
-                <h1 className="font-bold text-xl text-slate-800 hidden sm:block">LessonArcade Lite</h1>
+                <h1 className="font-bold text-xl text-slate-800 hidden sm:block">{APP_NAME}</h1>
                 <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
                 <div className="text-sm font-medium text-slate-600 truncate max-w-[200px] sm:max-w-xs">
                     {project.videoTitle}
