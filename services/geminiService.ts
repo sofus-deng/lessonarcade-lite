@@ -77,21 +77,50 @@ async function callModelWithFallback(
     const isServerOverload =
       status === "UNAVAILABLE" ||
       status === 503 ||
-      code === 503;
+      code === 503 ||
+      message.includes('503');
 
-    // 2. Only fallback if we hit a Rate Limit or Overload
-    if (isRateLimit || isServerOverload) {
-      console.warn(
-        `[LessonArcade Lite] Primary model (${PRIMARY_MODEL_ID}) exhausted or overloaded. Falling back to ${FALLBACK_MODEL_ID}.`
-      );
-      // Try Fallback Model (with its own retries)
-      // Note: If this fails, it will throw, and the UI will see the error.
-      // If this succeeds, the UI will proceed normally without an error toast.
-      return await withRetry(() => callWithModel(FALLBACK_MODEL_ID));
+    // If PRIMARY_MODEL_ID error is NOT rate-limit / quota / overload:
+    // Rethrow the original error immediately. Do not fall back to FLASH in this case.
+    if (!isRateLimit && !isServerOverload) {
+      throw err;
     }
 
-    // Otherwise, rethrow (e.g., bad request, invalid prompt, etc.)
-    throw err;
+    // If PRIMARY_MODEL_ID error IS rate-limit / quota / overload:
+    console.warn(`[LessonArcade Lite] Falling back to ${FALLBACK_MODEL_ID} due to rate limit:`, status || code);
+
+    try {
+      // Then try FALLBACK_MODEL_ID with withRetry
+      return await withRetry(() => callWithModel(FALLBACK_MODEL_ID));
+    } catch (fallbackErr: any) {
+      // If the fallback error is also rate-limit / quota / overload, then we consider both models exhausted.
+      const fStatus = fallbackErr?.status || fallbackErr?.response?.status;
+      const fCode = fallbackErr?.code || fallbackErr?.error?.code;
+      const fMessage = fallbackErr?.message || '';
+
+      const fIsRateLimit =
+        fStatus === "RESOURCE_EXHAUSTED" ||
+        fStatus === 429 ||
+        fCode === 429 ||
+        fMessage.includes('429') ||
+        fMessage.includes('quota') ||
+        fMessage.includes('RESOURCE_EXHAUSTED');
+
+      const fIsServerOverload =
+        fStatus === "UNAVAILABLE" ||
+        fStatus === 503 ||
+        fCode === 503 ||
+        fMessage.includes('503');
+
+      if (fIsRateLimit || fIsServerOverload) {
+        const quotaErr = new Error("LESSON_ARCADE_QUOTA_EXHAUSTED_BOTH_MODELS");
+        (quotaErr as any).isQuotaExhausted = true;
+        throw quotaErr;
+      }
+
+      // If the fallback error is NOT rate-limit / quota / overload, rethrow the fallback error as-is.
+      throw fallbackErr;
+    }
   }
 }
 
@@ -212,17 +241,17 @@ export async function generateLessonPlan(
       levels
     };
   } catch (error: any) {
-    // Check if the error from callModelWithFallback is a quota error
-    const message = error?.message || '';
-    const isQuota = message.includes('429') || message.includes('quota') || message.includes('RESOURCE_EXHAUSTED');
-    
-    if (isQuota) {
-      console.warn("Gemini Quota Exceeded (Both Models):", error);
-      throw new Error("Failed to call the Gemini API: user has exceeded quota. Please try again later.");
+    if (error.message === "LESSON_ARCADE_QUOTA_EXHAUSTED_BOTH_MODELS" || error.isQuotaExhausted) {
+      console.warn("Gemini quota exhausted for both primary and fallback:", error);
+      const err = new Error("LESSON_ARCADE_QUOTA_ERROR");
+      (err as any).code = "LESSON_ARCADE_QUOTA_ERROR";
+      throw err;
     }
     
     console.error("Gemini Generation Error:", error);
-    throw new Error("Failed to generate lesson plan. Please try again.");
+    const err = new Error("LESSON_ARCADE_GENERATION_FAILED");
+    (err as any).code = "LESSON_ARCADE_GENERATION_FAILED";
+    throw err;
   }
 }
 

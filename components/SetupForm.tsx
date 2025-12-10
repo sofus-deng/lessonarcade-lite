@@ -91,8 +91,24 @@ export const SetupForm: React.FC<SetupFormProps> = ({ onLessonCreated }) => {
     try {
       const project = await generateLessonPlan(url, title, description, audience, difficulty);
       onLessonCreated(project);
-    } catch (err) {
-      setGenerationError(err instanceof Error ? err.message : 'Something went wrong');
+    } catch (err: any) {
+      console.error("Lesson generation failed:", err);
+      const code = err?.code || err?.message;
+
+      if (code === "LESSON_ARCADE_QUOTA_ERROR") {
+        // Both primary and fallback models are exhausted or over limit.
+        setGenerationError(
+          "You’ve hit the current Gemini usage limit for this app. Please wait a bit and try again, or generate fewer new lessons in a short time."
+        );
+      } else if (code === "LESSON_ARCADE_GENERATION_FAILED") {
+        setGenerationError(
+          "We couldn’t generate this lesson right now. Please try again in a moment."
+        );
+      } else {
+        setGenerationError(
+          "Unexpected error while generating the lesson. Please try again."
+        );
+      }
     } finally {
       setIsGenerating(false);
     }
